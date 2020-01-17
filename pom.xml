@@ -106,6 +106,9 @@
     <revapi-maven-plugin.version>0.11.2</revapi-maven-plugin.version>
     <revapi-java.version>0.20.0</revapi-java.version>
     <maven-dependency-plugin.version>3.1.1</maven-dependency-plugin.version>
+    <build-helper-maven-plugin.version>3.0.0</build-helper-maven-plugin.version>
+    <maven-toolchains-plugin.version>3.0.0</maven-toolchains-plugin.version>
+    <errorprone-javac.version>9+181-r4173-1</errorprone-javac.version>
 
     <!-- Maven Surefire ArgLine -->
     <argLine>-Djava.util.logging.config.file=logging.properties</argLine>
@@ -276,6 +279,63 @@
 
     <plugins>
       <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
+        <artifactId>maven-toolchains-plugin</artifactId>
+        <version>${maven-toolchains-plugin.version}</version>
+        <configuration>
+          <toolchains>
+            <jdk>
+              <version>[${java.version}]</version>
+            </jdk>
+          </toolchains>
+        </configuration>
+        <executions>
+          <execution>
+            <?m2e ignore?>
+            <goals>
+              <goal>toolchain</goal>
+            </goals>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.codehaus.mojo</groupId>
+        <artifactId>build-helper-maven-plugin</artifactId>
+        <version>3.0.0</version>
+        <executions>
+          <execution>
+            <id>regex-property</id>
+            <goals>
+              <goal>regex-property</goal>
+            </goals>
+            <configuration>
+              <name>errorprone.config</name>
+              <value>
+                -XepAllDisabledChecksAsWarnings
+                -XepIgnoreUnknownCheckNames
+                -XepAllErrorsAsWarnings
+                <!-- NullAway configuration -->
+                -Xep:NullAway:WARN
+                -XepOpt:NullAway:AnnotatedPackages=edu.hm.hafner
+                <!-- Disabled Rules -->
+                -Xep:EqualsGetClass:OFF
+                -Xep:AndroidJdkLibsChecker:OFF
+                -Xep:Java7ApiChecker:OFF
+                -Xep:Var:OFF
+                -Xep:PrivateConstructorForUtilityClass:OFF
+                -Xep:MethodCanBeStatic:OFF
+                -Xep:WildcardImport:OFF
+                -Xep:ThrowsUncheckedException:OFF
+                -Xep:NullableDereference:OFF <!-- Exception -->
+              </value>
+              <regex>\R</regex>
+              <failIfNoMatch>false</failIfNoMatch>
+            </configuration>
+          </execution>
+        </executions>
+      </plugin>
+      <plugin>
+        <groupId>org.apache.maven.plugins</groupId>
         <artifactId>maven-compiler-plugin</artifactId>
         <version>${maven-compiler-plugin.version}</version>
         <configuration>
@@ -285,46 +345,25 @@
           <testTarget>${java.version}</testTarget>
           <annotationProcessorPaths>
             <path>
+              <groupId>com.google.errorprone</groupId>
+              <artifactId>error_prone_core</artifactId>
+              <version>${error-prone.version}</version>
+            </path>
+            <path>
               <groupId>com.uber.nullaway</groupId>
               <artifactId>nullaway</artifactId>
               <version>${nullaway.version}</version>
             </path>
           </annotationProcessorPaths>
+          <fork>true</fork>
           <compilerArgs>
+            <arg>-J-Xbootclasspath/p:${settings.localRepository}/com/google/errorprone/javac/${errorprone-javac.version}/javac-${errorprone-javac.version}.jar</arg>
             <arg>-Xlint:all</arg>
-            <arg>-XepAllDisabledChecksAsWarnings</arg>
-            <arg>-XepIgnoreUnknownCheckNames</arg>
-            <arg>-XepAllErrorsAsWarnings</arg>
-            <!-- NullAway configuration -->
-            <arg>-Xep:NullAway:WARN</arg>
-            <arg>-XepOpt:NullAway:AnnotatedPackages=edu.hm.hafner</arg>
-            <!-- Disabled Rules -->
-            <arg>-Xep:EqualsGetClass:OFF</arg>
-            <arg>-Xep:AndroidJdkLibsChecker:OFF</arg>
-            <arg>-Xep:Java7ApiChecker:OFF</arg>
-            <arg>-Xep:Var:OFF</arg>
-            <arg>-Xep:PrivateConstructorForUtilityClass:OFF</arg>
-            <arg>-Xep:MethodCanBeStatic:OFF</arg>
-            <arg>-Xep:WildcardImport:OFF</arg>
-            <arg>-Xep:ThrowsUncheckedException:OFF</arg>
-            <arg>-Xep:NullableDereference:OFF</arg> <!-- Exception -->
+            <arg>-XDcompilePolicy=simple</arg>
+            <arg>-Xplugin:ErrorProne ${errorprone.config}</arg>
           </compilerArgs>
-          <compilerId>javac-with-errorprone</compilerId>
-          <forceJavacCompilerUse>true</forceJavacCompilerUse>
           <showWarnings>true</showWarnings>
         </configuration>
-        <dependencies>
-          <dependency>
-            <groupId>org.codehaus.plexus</groupId>
-            <artifactId>plexus-compiler-javac-errorprone</artifactId>
-            <version>${maven-error-prone-plugin.version}</version>
-          </dependency>
-          <dependency>
-            <groupId>com.google.errorprone</groupId>
-            <artifactId>error_prone_core</artifactId>
-            <version>${error-prone.version}</version>
-          </dependency>
-        </dependencies>
       </plugin>
       <plugin>
         <artifactId>maven-javadoc-plugin</artifactId>
